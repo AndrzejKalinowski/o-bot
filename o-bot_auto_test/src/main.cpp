@@ -3,7 +3,6 @@ Created by Andrzej Kalinowski.
 In 2020 r.
 */
 
-
 #include <Arduino.h>
 #include <Servo.h> //inkludowanie biblioteki servo
 #include "Adafruit_VL53L0X.h"
@@ -29,7 +28,9 @@ SharpDistSensor sensor2(sharp2Pin, medianFilterWindowSize2);
 int RightMotor = 0;
 int LeftMotor = 0;
 int SpeedValue = 0;
+
 int iloszprzejazdow = 0;
+boolean mamGo = false;
 
 unsigned int distance;
 const unsigned int MAX_DIST = 23200;
@@ -42,10 +43,22 @@ void errorXD();
 int hcsr04Read(int a);
 int sharpRead(int a);
 
+unsigned long t1;
+unsigned long t2;
+unsigned long pulse_width;
+unsigned long t12;
+unsigned long t22;
+unsigned long pulse_width2;
+unsigned long aktualnyCzas = 0;
+unsigned long zapamietanyCzas = 0;
+unsigned long roznicaCzasu = 0;
+
+
 void setup()
 {
+  //turn_left();
   myservo.attach(2);  // podlaczenie serva do pinu 2
-  myservo2.attach(3); // podlaczenie serva2 do pinu 3
+  myservo2.attach(5); // podlaczenie serva2 do pinu 3
   myservo3.attach(4);
   for (int i; i < 9; i++)
   {
@@ -78,6 +91,11 @@ void setup()
   digitalWrite(6, LOW);
 
   myservo3.write(40);
+  myservo.write(0);
+  myservo2.write(150);
+
+  LeftMotor = 100;
+  RightMotor = 100;
   Serial.println("Ready");
 }
 
@@ -160,21 +178,20 @@ void loop()
   digitalWrite(13, HIGH);
   digitalWrite(8, LOW);
   digitalWrite(12, LOW);
-  if ((hcsr04Read(2) <= 600) && (iloszprzejazdow < 2))
+  if ((hcsr04Read(2) <= 400) && (iloszprzejazdow < 2))
   {
     turn_right();
     iloszprzejazdow++;
   }
 
 
-  LeftMotor = 100;
-  RightMotor = 100;
+
   analogWrite(9, RightMotor);
   analogWrite(10, LeftMotor);
   if (iloszprzejazdow < 2)
   {
 
-    if (measure.RangeMilliMeter <= 100)
+    if (measure.RangeMilliMeter <= 130)
     {
       /*
     LeftMotor += 1000;
@@ -188,7 +205,7 @@ void loop()
     analogWrite(9,  RightMotor);
     analogWrite(10, LeftMotor);
     */
-      digitalWrite(7, HIGH);
+      //digitalWrite(7, HIGH);
 
       digitalWrite(11, HIGH);
       digitalWrite(13, LOW);
@@ -210,7 +227,7 @@ void loop()
       digitalWrite(7, LOW);
     }
 
-    if (measure.RangeMilliMeter >= 100)
+    if (measure.RangeMilliMeter >= 130)
     {
       /*
     RightMotor += 50;
@@ -262,8 +279,9 @@ void loop()
     Serial.println("ok");
     while (measure.RangeMilliMeter <= 200)
     {
-      VL53L0X_RangingMeasurementData_t measure;
 
+      VL53L0X_RangingMeasurementData_t measure;
+      digitalWrite(7, HIGH);
       //Serial.print("Reading a measurement... ");
       lox.rangingTest(&measure, false); // pass in 'true' to get debug data printout!
 
@@ -277,10 +295,10 @@ void loop()
     {
          Serial.println(" out of range ");
     }
-
-    if (measure.RangeMilliMeter <= 60)
+    //delay(30);
+    if (measure.RangeMilliMeter <= 90)
     {
-      digitalWrite(7, HIGH);
+      //digitalWrite(7, HIGH);
 
       digitalWrite(11, HIGH);
       digitalWrite(13, LOW);
@@ -292,7 +310,7 @@ void loop()
       digitalWrite(7, LOW);
     }
 
-    if (measure.RangeMilliMeter >= 60)
+    if (measure.RangeMilliMeter >= 90)
     {
 
       digitalWrite(11, LOW);
@@ -304,8 +322,8 @@ void loop()
     else
     {
     }
-    if (measure.RangeMilliMeter >= 150) {
-      delay(50);
+    if (measure.RangeMilliMeter >= 250) {
+      delay(100);
       iloszprzejazdow ++;
       break;
     }
@@ -316,17 +334,18 @@ void loop()
     digitalWrite(12, LOW);
   }
 
-  if ((hcsr04Read(2) <=600) && (iloszprzejazdow >= 2) && (hcsr04Read(2) > 200))
+  if ((hcsr04Read(2) <= 450) && (iloszprzejazdow >= 2) && (hcsr04Read(2) > 200))
   {
-
-
-    turn_left();
-    iloszprzejazdow++;
+    if(iloszprzejazdow < 5){
+      turn_left();
+      iloszprzejazdow++;
+    }
   }
-  if(iloszprzejazdow >= 3){
-    if (hcsr04Read(1) >= 700)
+  if ((iloszprzejazdow >= 3) && (iloszprzejazdow <= 8))
+  {
+    if (hcsr04Read(1) >= 750)
     {
-      digitalWrite(7, HIGH);
+      //digitalWrite(7, HIGH);
 
       digitalWrite(11, HIGH);
       digitalWrite(13, LOW);
@@ -338,7 +357,7 @@ void loop()
       digitalWrite(7, LOW);
     }
 
-    if (hcsr04Read(1) <= 700)
+    if (hcsr04Read(1) <= 750)
     {
 
 
@@ -351,6 +370,21 @@ void loop()
     else
     {
     }
+    if (hcsr04Read(1) <= 200){
+      digitalWrite(11, LOW);
+      digitalWrite(13,LOW);
+      digitalWrite(8, HIGH);
+      digitalWrite(12, HIGH);
+
+    }
+  }
+  if (hcsr04Read(2) <= 200){
+    digitalWrite(11, LOW);
+    digitalWrite(13,LOW);
+    digitalWrite(8, HIGH);
+    digitalWrite(12, HIGH);
+
+
   }
   // forward();
   //Serial.print("sharp: ");
@@ -375,7 +409,7 @@ else
   //delay(10);
 //  mStop();
   //while(1){
-  Serial.println(hcsr04Read(2));
+  Serial.println(hcsr04Read(1));
 //}
   //forward();
   //turn_left();
@@ -389,8 +423,87 @@ if (iloszprzejazdow == 5) {
 
   //}
 }
-//end loop
+switch (iloszprzejazdow) {
+  case 5:
+    if (measure.RangeMilliMeter <= 150){
+        //mStop();
+        digitalWrite(7, HIGH);
+        iloszprzejazdow++;
+    }
+  break;
+  case 6:
+  if (measure.RangeMilliMeter >= 400){
+      //mStop();
+      digitalWrite(7, HIGH);
+      delay(20);
+      iloszprzejazdow++;
+  }
+  break;
+  case 7:
+  if (measure.RangeMilliMeter <= 950){
+      //  mStop();
+      LeftMotor = 100;
+      RightMotor = 100;
+        forward();
+        delay(700);
+        turn_left();
+        myservo3.write(175);
+        delay(100);
+        myservo.write(150);
+        myservo2.write(0);
+        iloszprzejazdow++;
+  }
+  break;
+  case 8:
+  while(1){
+    if(sharpRead(1) <= 200){
+      myservo.write(0);
+      myservo2.write(150);
+      delay(200);
+      myservo3.write(40);
+      iloszprzejazdow++;
+      break;
+    }
+    else{
+      LeftMotor = 100;
+      RightMotor = 160;
+      forward();
+    }
+  }
+  break;
+  case 9:
+      while (1) {
+          //mStop();
+          if(sharpRead(2) <= 500){
+            turn_left();
+            mamGo = true;
+            iloszprzejazdow++;
+            break;
+          }
+          else{
+            LeftMotor = 160;
+            RightMotor = 100;
+            digitalWrite(11, LOW);
+            digitalWrite(13,LOW);
 
+            digitalWrite(8, HIGH);
+            digitalWrite(12, HIGH);
+          }
+      }
+    break;
+    case 10:
+      iloszprzejazdow = 0;
+    break;
+  }
+  if(mamGo == true){
+    LeftMotor = 140;
+    RightMotor = 140;
+  }
+  else{
+    LeftMotor = 95;
+    RightMotor = 95;
+  }
+//end loop
 }
 void turn_right()
 {
@@ -401,7 +514,12 @@ void turn_right()
   digitalWrite(12, HIGH);
   analogWrite(9, 150);
   analogWrite(10, 150);
-  delay(460);
+  if (mamGo == true) {
+    delay(550);
+  }
+  else{
+    delay(460);
+  }
   analogWrite(10, 0);
   analogWrite(9, 0);
 }
@@ -415,7 +533,7 @@ void turn_left()
   digitalWrite(12, LOW);
   analogWrite(9, 150);
   analogWrite(10, 150);
-  delay(395);
+  delay(510);
   analogWrite(10, 0);
   analogWrite(9, 0);
 }
@@ -452,9 +570,6 @@ int hcsr04Read(int a)
     digitalWrite(trigPin, LOW);
     return pulseIn(echoPin, HIGH);
     */
-    unsigned long t1;
-    unsigned long t2;
-    unsigned long pulse_width;
     digitalWrite(trigPin, HIGH);
     delayMicroseconds(10);
     digitalWrite(trigPin, LOW);
@@ -480,22 +595,24 @@ int hcsr04Read(int a)
     digitalWrite(trigPin2, LOW);
     return pulseIn(echoPin2, HIGH);
     */
-    unsigned long t1;
-    unsigned long t2;
-    unsigned long pulse_width;
+
+    //unsigned long t1;
+    //unsigned long t2;
+    //unsigned long pulse_width;
     digitalWrite(trigPin2, HIGH);
     delayMicroseconds(10);
     digitalWrite(trigPin2, LOW);
     while ( digitalRead(echoPin2) == 0 );
-    t1 = micros();
+    t12 = micros();
     while ( digitalRead(echoPin2) == 1);
-    t2 = micros();
-    pulse_width = t2 - t1;
-    if ( pulse_width > MAX_DIST ) {
+    t22 = micros();
+    pulse_width2 = t22 - t12;
+    if ( pulse_width2 > MAX_DIST ) {
       Serial.println("Out of range");
     } else {
-      return pulse_width;
+      return pulse_width2;
     }
+
     break;
 
   default:
@@ -527,7 +644,7 @@ int sharpRead(int a)
 void errorXD()
 {
   Serial.println("error XD");
-  digitalWrite(7, HIGH);
+  //digitalWrite(7, HIGH);
   while (1)
     ;
 }
